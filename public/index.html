@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>마피아</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23EA002C%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 font-family=%22-apple-system,sans-serif%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22>M</text></svg>">
 <style>
@@ -23,9 +23,13 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
     background: var(--bg); color: var(--text);
-    min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+    min-height: 100dvh; -webkit-overflow-scrolling: touch;
   }
-  #app { width: 100%; max-width: 440px; padding: 16px 16px 48px; }
+  #app {
+    width: 100%; max-width: 440px; margin: 0 auto;
+    padding: 16px 16px calc(48px + env(safe-area-inset-bottom));
+  }
+  button, .target-btn, input { touch-action: manipulation; }
   h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.4px; margin: 28px 4px 4px; }
   .sub { color: var(--dim); font-size: 15px; margin: 0 4px 24px; }
   .card {
@@ -146,7 +150,7 @@
   .chat-msg.mine .who { color: var(--accent); }
   .chat-empty { color: var(--dim); font-size: 14px; text-align: center; padding: 12px 0; }
   .chat-input-row { display: flex; gap: 8px; }
-  .chat-input-row input { flex: 1; margin-bottom: 0; font-size: 15px; }
+  .chat-input-row input { flex: 1; margin-bottom: 0; font-size: 16px; }
   .chat-input-row button { width: 64px; flex: none; padding: 12px 0; font-size: 15px; border-radius: 10px; }
 </style>
 </head>
@@ -196,29 +200,56 @@ socket.on('state', (s) => { state = s; render(); });
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ─── 렌더링 ─────────────────────────────
+// 실제로 화면이 바뀔 때만 DOM을 교체 (터치 스크롤이 끊기지 않도록)
+let lastHTML = '';
+let lastChatLen = -1;
 function render() {
-  // 채팅 입력 중이면 값/포커스 보존
-  const chatEl = document.getElementById('chat-input');
-  const chatDraft = chatEl ? { value: chatEl.value, focused: document.activeElement === chatEl } : null;
+  const html = !state ? renderHome()
+    : state.phase === 'lobby' ? renderLobby()
+    : state.phase === 'ended' ? renderEnded()
+    : state.me.id === state.moderatorId ? renderModerator()
+    : renderPlayer();
 
-  if (!state) renderHome();
-  else if (state.phase === 'lobby') renderLobby();
-  else if (state.phase === 'ended') renderEnded();
-  else if (state.me.id === state.moderatorId) renderModerator();
-  else renderPlayer();
+  if (html !== lastHTML) {
+    // 채팅 입력 중이면 값/포커스 보존
+    const chatEl = document.getElementById('chat-input');
+    const chatDraft = chatEl ? { value: chatEl.value, focused: document.activeElement === chatEl } : null;
 
-  const newChat = document.getElementById('chat-input');
-  if (newChat && chatDraft) {
-    newChat.value = chatDraft.value;
-    if (chatDraft.focused) newChat.focus();
+    app.innerHTML = html;
+    lastHTML = html;
+    if (state && state.phase === 'lobby') loadQR();
+
+    const newChat = document.getElementById('chat-input');
+    if (newChat && chatDraft) {
+      newChat.value = chatDraft.value;
+      if (chatDraft.focused) newChat.focus({ preventScroll: true });
+    }
   }
   const box = document.getElementById('chat-box');
-  if (box) box.scrollTop = box.scrollHeight;
+  const chatLen = state?.chat?.length ?? 0;
+  if (box && chatLen !== lastChatLen) {
+    box.scrollTop = box.scrollHeight;
+    lastChatLen = chatLen;
+  }
 }
 
 function renderHome() {
   const urlCode = new URLSearchParams(location.search).get('code') || '';
-  app.innerHTML = `
+  if (urlCode.length === 6) {
+    // QR/링크로 들어온 경우: 이름만 입력하면 바로 참가
+    return `
+    <h1>마피아</h1>
+    <div class="sub">방 ${esc(urlCode)}에 초대받았어요</div>
+    <div class="card">
+      <h2>내 이름</h2>
+      <input type="text" id="name" placeholder="닉네임 (최대 12자)" maxlength="12" value="${esc(localStorage.getItem('mafia-name')||'')}"
+        onkeydown="if(event.key==='Enter'){joinRoom();event.preventDefault();}">
+      <input type="hidden" id="code" value="${esc(urlCode)}">
+      <button onclick="joinRoom()">참가하기</button>
+    </div>
+    <div class="sub" style="text-align:center"><a href="/" style="color:var(--dim)">직접 코드 입력 / 새 방 만들기</a></div>`;
+  }
+  return `
     <h1>마피아</h1>
     <div class="sub">폰으로 함께하는 실시간 마피아 게임</div>
     <div class="card">
@@ -303,7 +334,7 @@ function renderLobby() {
   const special = s.mafia + s.police + s.doctor;
   const minPlayers = special + 2;
   const n = state.players.length;
-  app.innerHTML = `
+  return `
     <h1>대기실</h1>
     <div class="sub">코드나 QR을 공유해 친구를 초대하세요</div>
     <div class="card" style="text-align:center">
@@ -333,7 +364,6 @@ function renderLobby() {
       : `<div class="sub" style="text-align:center;margin-top:8px">방장이 시작하기를 기다리는 중</div>`}
     <div class="spacer"></div>
     <button class="secondary" onclick="leaveRoom()">나가기</button>`;
-  loadQR();
 }
 
 function settingRow(label, key, value, isHost) {
@@ -354,13 +384,18 @@ function leaveRoom() {
   socket.emit('leaveRoom');
   clearSession();
 }
+let qrCache = { code: null, dataUrl: null };
 async function loadQR() {
-  const url = `${location.origin}/?code=${state.code}`;
+  const img = document.getElementById('qr');
+  if (!img) return;
+  if (qrCache.code === state.code) { img.src = qrCache.dataUrl; return; }
   try {
+    const url = `${location.origin}/?code=${state.code}`;
     const res = await fetch(`/qr?url=${encodeURIComponent(url)}`);
     const { dataUrl } = await res.json();
-    const img = document.getElementById('qr');
-    if (img) img.src = dataUrl;
+    qrCache = { code: state.code, dataUrl };
+    const el = document.getElementById('qr');
+    if (el) el.src = dataUrl;
   } catch {}
 }
 
@@ -405,7 +440,7 @@ function renderPlayer() {
     body = renderVote();
   }
 
-  app.innerHTML = phaseBanner() + body + `
+  return phaseBanner() + body + `
     <div class="card"><h2>플레이어</h2>${playerChips(state.players)}</div>`;
 }
 
@@ -512,7 +547,7 @@ function renderModerator() {
       <button class="secondary" onclick="execute(null)">처형 없이 넘어가기</button>`;
   }
 
-  app.innerHTML = phaseBanner() + roleCard('moderator') + actionCard + `
+  return phaseBanner() + roleCard('moderator') + actionCard + `
     <div class="card">
       <h2>전체 역할 — 사회자 전용</h2>
       ${mod.roles.filter(p => p.role !== 'moderator').map(p => `
@@ -531,7 +566,7 @@ function execute(id, name) {
 function renderEnded() {
   const isHost = state.me.id === state.hostId;
   const winnerText = state.winner === 'mafia' ? '마피아 승리' : '시민 승리';
-  app.innerHTML = `
+  return `
     <h1>${winnerText}</h1>
     <div class="sub">게임이 끝났습니다</div>
     <div class="card">
