@@ -1,0 +1,17 @@
+{
+  "name": "mafia-game",
+  "version": "1.0.0",
+  "description": "실시간 마피아 게임 웹앱",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5"
+  }
+}

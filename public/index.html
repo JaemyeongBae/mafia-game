@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>마피아</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23EA002C%22/><text x=%2250%22 y=%2268%22 font-size=%2252%22 font-family=%22-apple-system,sans-serif%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22>M</text></svg>">
+<style>
+  :root {
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --text: #1C1C1E;
+    --dim: #8E8E93;
+    --sep: #E5E5EA;
+    --accent: #EA002C;      /* SK Red */
+    --orange: #F47725;      /* SK Orange */
+    --blue: #3478F6;
+    --green: #2E9E5B;
+    --fill: #F2F2F7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+  }
+  #app { width: 100%; max-width: 440px; padding: 16px 16px 48px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.4px; margin: 28px 4px 4px; }
+  .sub { color: var(--dim); font-size: 15px; margin: 0 4px 24px; }
+  .card {
+    background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 12px;
+  }
+  .card h2 {
+    font-size: 13px; color: var(--dim); font-weight: 600; margin-bottom: 12px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  input[type=text], input[type=tel] {
+    width: 100%; padding: 13px 14px; font-size: 17px; border-radius: 10px;
+    border: none; background: var(--fill); color: var(--text);
+    margin-bottom: 10px; outline: none; -webkit-appearance: none;
+  }
+  input::placeholder { color: var(--dim); }
+  button {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border-radius: 12px;
+    border: none; cursor: pointer; background: var(--accent); color: #fff;
+    font-family: inherit; transition: opacity .15s;
+  }
+  button:active { opacity: .6; }
+  button.secondary { background: var(--card); color: var(--accent); }
+  button.tinted { background: #EA002C14; color: var(--accent); }
+  button:disabled { opacity: .35; cursor: default; }
+  .code-display {
+    font-size: 42px; font-weight: 700; letter-spacing: 10px; text-align: center;
+    font-variant-numeric: tabular-nums; margin: 4px 0 4px 10px;
+  }
+  #qr { display: block; margin: 14px auto 4px; width: 180px; height: 180px; }
+  .count-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .count-row .num { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .count-row .lbl { font-size: 15px; color: var(--dim); }
+  .player-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--fill); padding: 7px 13px; border-radius: 18px; font-size: 15px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .chip.dead { opacity: .4; text-decoration: line-through; }
+  .chip.offline { opacity: .45; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; }
+  .offline .dot { background: var(--dim); }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 9px;
+    background: #EA002C14; color: var(--accent);
+  }
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between; padding: 11px 0;
+    border-bottom: 0.5px solid var(--sep);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-row .label { font-size: 16px; }
+  .stepper { display: flex; align-items: center; gap: 4px; background: var(--fill); border-radius: 9px; }
+  .stepper button {
+    width: 40px; height: 34px; padding: 0; font-size: 20px; font-weight: 400;
+    background: transparent; color: var(--text); border-radius: 9px;
+  }
+  .stepper span { font-size: 16px; font-weight: 600; min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; }
+  .stepper.readonly { background: transparent; }
+  .stepper.readonly span { color: var(--dim); }
+  .role-card { text-align: center; padding: 36px 20px 32px; border-radius: 12px; background: var(--card); margin-bottom: 12px; }
+  .role-card .tag {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 1.5px;
+    padding: 5px 12px; border-radius: 20px; margin-bottom: 14px;
+  }
+  .role-card .name { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .role-card .desc { font-size: 14px; color: var(--dim); line-height: 1.6; }
+  .t-mafia { background: #EA002C14; color: var(--accent); }
+  .t-police { background: #3478F614; color: var(--blue); }
+  .t-doctor { background: #2E9E5B14; color: var(--green); }
+  .t-citizen { background: var(--fill); color: var(--dim); }
+  .t-moderator { background: #F4772514; color: var(--orange); }
+  .phase-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-radius: 12px; margin: 20px 0 12px;
+    background: var(--card); font-size: 17px; font-weight: 700;
+  }
+  .phase-banner .day { font-size: 13px; font-weight: 500; color: var(--dim); }
+  .target-btn {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--fill); color: var(--text);
+    text-align: left; margin-bottom: 8px; font-weight: 500; padding: 13px 14px;
+    border-radius: 10px;
+  }
+  .target-btn.selected { background: #EA002C10; color: var(--accent); font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .target-btn .count { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mod-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 0.5px solid var(--sep); font-size: 15px;
+  }
+  .mod-row:last-child { border-bottom: none; }
+  .r { font-weight: 600; font-size: 14px; }
+  .r.mafia { color: var(--accent); } .r.police { color: var(--blue); }
+  .r.doctor { color: var(--green); } .r.citizen { color: var(--dim); }
+  .r.moderator { color: var(--orange); }
+  .dead-name { text-decoration: line-through; color: var(--dim); }
+  .result-box, .info-box {
+    border-radius: 12px; padding: 16px; margin-bottom: 12px; font-size: 15px; line-height: 1.6;
+    background: var(--card);
+  }
+  .result-box { border-left: 3px solid var(--accent); }
+  .info-box { border-left: 3px solid var(--blue); }
+  .muted { color: var(--dim); font-size: 13px; }
+  .log { font-size: 13px; color: var(--dim); line-height: 1.9; max-height: 150px; overflow-y: auto; }
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: #1C1C1EE6; color: #fff; padding: 11px 20px; border-radius: 24px;
+    font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 99;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .dead-overlay { text-align: center; padding: 44px 20px; border-radius: 12px; margin-bottom: 12px; background: var(--card); }
+  .dead-overlay .big { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+  .spacer { height: 8px; }
+  /* 채팅 */
+  .chat-box { max-height: 220px; overflow-y: auto; margin-bottom: 12px; }
+  .chat-msg { font-size: 15px; line-height: 1.5; padding: 3px 0; word-break: break-word; }
+  .chat-msg .who { font-weight: 600; margin-right: 6px; }
+  .chat-msg.mine .who { color: var(--accent); }
+  .chat-empty { color: var(--dim); font-size: 14px; text-align: center; padding: 12px 0; }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input-row input { flex: 1; margin-bottom: 0; font-size: 15px; }
+  .chat-input-row button { width: 64px; flex: none; padding: 12px 0; font-size: 15px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const app = document.getElementById('app');
+let state = null;
+let saved = JSON.parse(localStorage.getItem('mafia-session') || 'null');
+
+const ROLE_INFO = {
+  mafia:     { name: '마피아', tag: 'MAFIA', cls: 't-mafia',  desc: '밤마다 한 명을 제거하세요.<br>낮에는 시민인 척 행동하세요.' },
+  police:    { name: '경찰',   tag: 'POLICE', cls: 't-police', desc: '밤마다 한 명을 조사해<br>마피아인지 확인할 수 있어요.' },
+  doctor:    { name: '의사',   tag: 'DOCTOR', cls: 't-doctor', desc: '밤마다 한 명을 지목해<br>마피아의 공격에서 살릴 수 있어요.' },
+  citizen:   { name: '시민',   tag: 'CITIZEN', cls: 't-citizen', desc: '토론과 투표로<br>마피아를 찾아내세요.' },
+  moderator: { name: '사회자', tag: 'MODERATOR', cls: 't-moderator', desc: '게임을 진행하세요.<br>모든 정보는 당신만 볼 수 있어요.' },
+};
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function saveSession(code, playerId) {
+  saved = { code, playerId };
+  localStorage.setItem('mafia-session', JSON.stringify(saved));
+}
+function clearSession() {
+  saved = null;
+  localStorage.removeItem('mafia-session');
+  state = null;
+  render();
+}
+
+socket.on('connect', () => {
+  if (saved) socket.emit('rejoin', saved, (res) => {
+    if (res.error) clearSession();
+  });
+});
+socket.on('state', (s) => { state = s; render(); });
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ─── 렌더링 ─────────────────────────────
+function render() {
+  // 채팅 입력 중이면 값/포커스 보존
+  const chatEl = document.getElementById('chat-input');
+  const chatDraft = chatEl ? { value: chatEl.value, focused: document.activeElement === chatEl } : null;
+
+  if (!state) renderHome();
+  else if (state.phase === 'lobby') renderLobby();
+  else if (state.phase === 'ended') renderEnded();
+  else if (state.me.id === state.moderatorId) renderModerator();
+  else renderPlayer();
+
+  const newChat = document.getElementById('chat-input');
+  if (newChat && chatDraft) {
+    newChat.value = chatDraft.value;
+    if (chatDraft.focused) newChat.focus();
+  }
+  const box = document.getElementById('chat-box');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+function renderHome() {
+  const urlCode = new URLSearchParams(location.search).get('code') || '';
+  app.innerHTML = `
+    <h1>마피아</h1>
+    <div class="sub">폰으로 함께하는 실시간 마피아 게임</div>
+    <div class="card">
+      <h2>내 이름</h2>
+      <input type="text" id="name" placeholder="닉네임 (최대 12자)" maxlength="12" value="${esc(localStorage.getItem('mafia-name')||'')}">
+    </div>
+    <div class="card">
+      <h2>방 참가</h2>
+      <input type="tel" id="code" placeholder="6자리 코드" maxlength="6" value="${esc(urlCode)}">
+      <button class="tinted" onclick="joinRoom()">참가하기</button>
+    </div>
+    <div class="card">
+      <h2>새 게임</h2>
+      <button onclick="createRoom()">방 만들기</button>
+    </div>`;
+}
+
+function getName() {
+  const name = document.getElementById('name').value.trim();
+  if (!name) { toast('이름을 입력하세요'); return null; }
+  localStorage.setItem('mafia-name', name);
+  return name;
+}
+function createRoom() {
+  const name = getName(); if (!name) return;
+  socket.emit('createRoom', { name }, (res) => {
+    if (res.error) return toast(res.error);
+    saveSession(res.code, res.playerId);
+    history.replaceState(null, '', '/');
+  });
+}
+function joinRoom() {
+  const name = getName(); if (!name) return;
+  const code = document.getElementById('code').value.trim();
+  if (code.length !== 6) return toast('6자리 코드를 입력하세요');
+  socket.emit('joinRoom', { code, name }, (res) => {
+    if (res.error) return toast(res.error);
+    saveSession(res.code, res.playerId);
+    history.replaceState(null, '', '/');
+  });
+}
+
+function playerChips(players) {
+  return `<div class="player-list">${players.map(p => `
+    <div class="chip ${!p.alive ? 'dead' : ''} ${!p.connected ? 'offline' : ''}">
+      <div class="dot"></div>${esc(p.name)}
+      ${p.id === state.hostId ? '<span class="badge">방장</span>' : ''}
+      ${p.id === state.moderatorId ? '<span class="badge">사회자</span>' : ''}
+    </div>`).join('')}</div>`;
+}
+
+function chatCard() {
+  const msgs = state.chat || [];
+  const myName = localStorage.getItem('mafia-name');
+  return `<div class="card">
+    <h2>채팅</h2>
+    <div class="chat-box" id="chat-box">
+      ${msgs.length ? msgs.map(m => `
+        <div class="chat-msg ${m.name === myName ? 'mine' : ''}">
+          <span class="who">${esc(m.name)}</span>${esc(m.text)}
+        </div>`).join('') : '<div class="chat-empty">대기하는 동안 대화해 보세요</div>'}
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="메시지 입력" maxlength="200"
+        onkeydown="if(event.key==='Enter'){sendChat();event.preventDefault();}">
+      <button onclick="sendChat()">전송</button>
+    </div>
+  </div>`;
+}
+function sendChat() {
+  const el = document.getElementById('chat-input');
+  const text = el.value.trim();
+  if (!text) return;
+  el.value = '';
+  socket.emit('chatMessage', { text });
+  el.focus();
+}
+
+function renderLobby() {
+  const isHost = state.me.id === state.hostId;
+  const s = state.settings;
+  const special = s.mafia + s.police + s.doctor;
+  const minPlayers = special + 2;
+  const n = state.players.length;
+  app.innerHTML = `
+    <h1>대기실</h1>
+    <div class="sub">코드나 QR을 공유해 친구를 초대하세요</div>
+    <div class="card" style="text-align:center">
+      <h2>참가 코드</h2>
+      <div class="code-display">${state.code}</div>
+      <img id="qr" alt="QR 코드">
+    </div>
+    <div class="card">
+      <h2>참가 인원</h2>
+      <div class="count-row">
+        <span class="num">${n}명</span>
+        <span class="lbl">${n < minPlayers ? `최소 ${minPlayers}명 필요 (${minPlayers - n}명 더)` : '시작 가능'}</span>
+      </div>
+      ${playerChips(state.players)}
+    </div>
+    ${chatCard()}
+    <div class="card">
+      <h2>직업 설정${isHost ? '' : ' — 방장만 변경 가능'}</h2>
+      ${settingRow('마피아', 'mafia', s.mafia, isHost)}
+      ${settingRow('경찰', 'police', s.police, isHost)}
+      ${settingRow('의사', 'doctor', s.doctor, isHost)}
+      <div class="setting-row"><div class="label">시민</div><div class="stepper readonly"><span>${Math.max(0, n - 1 - special)}</span></div></div>
+      <div class="setting-row"><div class="label">사회자 (랜덤 배정)</div><div class="stepper readonly"><span>1</span></div></div>
+    </div>
+    ${isHost
+      ? `<button onclick="socket.emit('startGame', r => r && r.error && toast(r.error))" ${n < minPlayers ? 'disabled' : ''}>게임 시작</button>`
+      : `<div class="sub" style="text-align:center;margin-top:8px">방장이 시작하기를 기다리는 중</div>`}
+    <div class="spacer"></div>
+    <button class="secondary" onclick="leaveRoom()">나가기</button>`;
+  loadQR();
+}
+
+function settingRow(label, key, value, isHost) {
+  return `<div class="setting-row">
+    <div class="label">${label}</div>
+    <div class="stepper ${isHost ? '' : 'readonly'}">
+      ${isHost ? `<button onclick="changeSetting('${key}', -1)">−</button>` : ''}
+      <span>${value}</span>
+      ${isHost ? `<button onclick="changeSetting('${key}', 1)">+</button>` : ''}
+    </div></div>`;
+}
+function changeSetting(key, delta) {
+  const s = { ...state.settings };
+  s[key] += delta;
+  socket.emit('updateSettings', s);
+}
+function leaveRoom() {
+  socket.emit('leaveRoom');
+  clearSession();
+}
+async function loadQR() {
+  const url = `${location.origin}/?code=${state.code}`;
+  try {
+    const res = await fetch(`/qr?url=${encodeURIComponent(url)}`);
+    const { dataUrl } = await res.json();
+    const img = document.getElementById('qr');
+    if (img) img.src = dataUrl;
+  } catch {}
+}
+
+// ─── 플레이어 화면 ─────────────────────────
+function roleCard(role, extra = '') {
+  const r = ROLE_INFO[role];
+  return `<div class="role-card">
+    <div class="tag ${r.cls}">${r.tag}</div>
+    <div class="name">${r.name}</div>
+    <div class="desc">${r.desc}</div>
+    ${extra}
+  </div>`;
+}
+
+function phaseBanner() {
+  const map = { reveal: '역할 확인', night: '밤', day: '낮 — 토론', vote: '투표' };
+  return `<div class="phase-banner">
+    <span>${map[state.phase] || ''}</span>
+    <span class="day">${state.dayCount > 0 ? `${state.dayCount}일차 · ` : ''}생존 ${state.aliveCount}명</span>
+  </div>`;
+}
+
+function renderPlayer() {
+  const me = state.me;
+  let body = '';
+
+  if (!me.alive) {
+    body = `<div class="dead-overlay">
+      <div class="big">사망했습니다</div>
+      <div class="muted">조용히 관전해 주세요</div>
+    </div>` + roleCard(me.role);
+  } else if (state.phase === 'reveal') {
+    let extra = '';
+    if (me.role === 'mafia' && me.mafiaTeam.length > 1)
+      extra = `<div class="desc" style="margin-top:14px">동료 마피아 — <b>${me.mafiaTeam.map(esc).join(', ')}</b></div>`;
+    body = roleCard(me.role, extra) + `<div class="sub" style="text-align:center">사회자가 밤을 시작하면 게임이 진행돼요</div>`;
+  } else if (state.phase === 'night') {
+    body = renderNightAction();
+  } else if (state.phase === 'day') {
+    body = roleCard(me.role) + `<div class="sub" style="text-align:center">얼굴을 보며 토론하세요. 사회자가 투표를 시작해요.</div>`;
+  } else if (state.phase === 'vote') {
+    body = renderVote();
+  }
+
+  app.innerHTML = phaseBanner() + body + `
+    <div class="card"><h2>플레이어</h2>${playerChips(state.players)}</div>`;
+}
+
+function targetButtons(onclickName, selectedId) {
+  const targets = state.players.filter(p => p.alive && p.id !== state.moderatorId && p.id !== state.me.id);
+  return targets.map(p => `
+    <button class="target-btn ${selectedId === p.id ? 'selected' : ''}" onclick="${onclickName}('${p.id}')">
+      <span>${esc(p.name)}</span>${selectedId === p.id ? '<span>선택됨</span>' : ''}
+    </button>`).join('');
+}
+
+function renderNightAction() {
+  const me = state.me;
+  if (me.role === 'mafia') {
+    return `<div class="card">
+      <h2>제거할 사람 선택${me.mafiaTeam.length > 1 ? ' — 마지막 선택이 적용됩니다' : ''}</h2>
+      ${targetButtons('nightAction', me.mafiaTarget)}
+    </div>`;
+  }
+  if (me.role === 'doctor') {
+    return `<div class="card">
+      <h2>살릴 사람 선택 — 본인도 가능</h2>
+      ${state.players.filter(p => p.alive && p.id !== state.moderatorId).map(p => `
+        <button class="target-btn ${me.doctorTarget === p.id ? 'selected' : ''}" onclick="nightAction('${p.id}')">
+          <span>${esc(p.name)}${p.id === me.id ? ' (나)' : ''}</span>${me.doctorTarget === p.id ? '<span>선택됨</span>' : ''}
+        </button>`).join('')}
+    </div>`;
+  }
+  if (me.role === 'police') {
+    if (me.policeResult) {
+      return `<div class="info-box">조사 결과<br><b>${esc(me.policeResult.name)}</b> — <b>${me.policeResult.isMafia ? '마피아입니다' : '마피아가 아닙니다'}</b><br><span class="muted">이 결과는 당신과 사회자만 볼 수 있어요</span></div>
+        <div class="sub" style="text-align:center">사회자가 밤을 끝내기를 기다리는 중</div>`;
+    }
+    return `<div class="card">
+      <h2>조사할 사람 선택 — 선택 후 변경 불가</h2>
+      ${targetButtons('nightAction', null)}
+    </div>`;
+  }
+  return roleCard('citizen') + `<div class="sub" style="text-align:center">밤이에요. 눈을 감고 기다려 주세요.</div>`;
+}
+function nightAction(target) { socket.emit('nightAction', { target }); }
+
+function renderVote() {
+  const me = state.me;
+  return `<div class="card">
+    <h2>처형 투표 — ${state.voteCount}명 완료</h2>
+    ${state.players.filter(p => p.alive && p.id !== state.moderatorId).map(p => `
+      <button class="target-btn ${me.myVote === p.id ? 'selected' : ''}" onclick="sendVote('${p.id}')">
+        <span>${esc(p.name)}${p.id === me.id ? ' (나)' : ''}</span>${me.myVote === p.id ? '<span>선택됨</span>' : ''}
+      </button>`).join('')}
+    <button class="target-btn" onclick="sendVote(null)"><span>기권</span></button>
+  </div>`;
+}
+function sendVote(target) { socket.emit('vote', { target }); }
+
+// ─── 사회자 화면 ─────────────────────────
+function renderModerator() {
+  const mod = state.me.moderator;
+  let actionCard = '';
+
+  if (state.phase === 'reveal') {
+    actionCard = `<button onclick="socket.emit('modStartNight')">첫 번째 밤 시작</button>`;
+  } else if (state.phase === 'night') {
+    const n = mod.night;
+    actionCard = `
+      <div class="card">
+        <h2>밤 행동 현황 — 실시간</h2>
+        <div class="mod-row"><span>마피아 대상</span><span class="r mafia">${n.mafiaTarget ? esc(n.mafiaTarget) : '선택 중'}</span></div>
+        <div class="mod-row"><span>의사 대상</span><span class="r doctor">${n.doctorTarget ? esc(n.doctorTarget) : '선택 중'}</span></div>
+        <div class="mod-row"><span>경찰 조사</span><span class="r police">${n.policeTarget ? esc(n.policeTarget) : '선택 중'}</span></div>
+      </div>
+      <button onclick="socket.emit('modEndNight')">밤 종료 — 결과 확인</button>`;
+  } else if (state.phase === 'day') {
+    const r = mod.lastNightResult;
+    let resultBox = '';
+    if (r) {
+      resultBox = r.killed
+        ? `<div class="result-box"><b>${esc(r.killed)}</b> 님이 밤에 사망했습니다.<br><span class="muted">사람들에게 발표하세요</span></div>`
+        : r.saved
+          ? `<div class="result-box">의사가 <b>${esc(r.savedName)}</b> 님을 살렸습니다. 아무도 죽지 않았어요.</div>`
+          : `<div class="result-box">아무 일도 일어나지 않았습니다.</div>`;
+    }
+    actionCard = resultBox + `
+      <button onclick="socket.emit('modStartVote')">투표 시작</button>
+      <div class="spacer"></div>
+      <button class="secondary" onclick="socket.emit('modStartNight')">투표 없이 밤 시작</button>`;
+  } else if (state.phase === 'vote') {
+    const tally = {};
+    mod.votes.forEach(v => { const k = v.targetId || '__skip'; tally[k] = (tally[k] || 0) + 1; });
+    const aliveTargets = state.players.filter(p => p.alive && p.id !== state.moderatorId);
+    actionCard = `
+      <div class="card">
+        <h2>투표 현황 ${mod.votes.length}/${state.aliveCount} — 이름을 누르면 처형</h2>
+        ${aliveTargets.map(p => `
+          <button class="target-btn" onclick="execute('${p.id}', '${esc(p.name)}')">
+            <span>${esc(p.name)}</span><span class="count">${tally[p.id] || 0}표</span>
+          </button>`).join('')}
+        <div class="mod-row"><span>기권</span><span class="count">${tally.__skip || 0}표</span></div>
+      </div>
+      <div class="card">
+        <h2>투표 내역</h2>
+        ${mod.votes.map(v => `<div class="mod-row"><span>${esc(v.voter)}</span><span class="muted">${esc(v.target)}</span></div>`).join('') || '<div class="chat-empty">아직 투표 없음</div>'}
+      </div>
+      <button class="secondary" onclick="execute(null)">처형 없이 넘어가기</button>`;
+  }
+
+  app.innerHTML = phaseBanner() + roleCard('moderator') + actionCard + `
+    <div class="card">
+      <h2>전체 역할 — 사회자 전용</h2>
+      ${mod.roles.filter(p => p.role !== 'moderator').map(p => `
+        <div class="mod-row"><span class="${p.alive ? '' : 'dead-name'}">${esc(p.name)}</span>
+        <span class="r ${p.role}">${ROLE_INFO[p.role].name}</span></div>`).join('')}
+    </div>
+    <div class="card"><h2>게임 기록</h2><div class="log">${mod.log.map(esc).join('<br>')}</div></div>`;
+}
+function execute(id, name) {
+  if (id && !confirm(`${name} 님을 처형할까요?`)) return;
+  if (!id && !confirm('처형 없이 넘어갈까요?')) return;
+  socket.emit('modExecute', { target: id });
+}
+
+// ─── 게임 종료 ─────────────────────────
+function renderEnded() {
+  const isHost = state.me.id === state.hostId;
+  const winnerText = state.winner === 'mafia' ? '마피아 승리' : '시민 승리';
+  app.innerHTML = `
+    <h1>${winnerText}</h1>
+    <div class="sub">게임이 끝났습니다</div>
+    <div class="card">
+      <h2>전체 역할 공개</h2>
+      ${state.players.filter(p => p.role && p.role !== 'moderator').map(p => `
+        <div class="mod-row"><span class="${p.alive ? '' : 'dead-name'}">${esc(p.name)}</span>
+        <span class="r ${p.role}">${ROLE_INFO[p.role].name}</span></div>`).join('')}
+      <div class="mod-row"><span>${esc(state.players.find(p => p.id === state.moderatorId)?.name || '')}</span><span class="r moderator">사회자</span></div>
+    </div>
+    ${isHost ? `<button onclick="socket.emit('restartGame')">같은 멤버로 다시 하기</button><div class="spacer"></div>` : '<div class="sub" style="text-align:center">방장이 다시 시작할 수 있어요</div><div class="spacer"></div>'}
+    <button class="secondary" onclick="leaveRoom()">나가기</button>`;
+}
+
+render();
+</script>
+</body>
+</html>
