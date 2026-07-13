@@ -222,19 +222,19 @@ io.on('connection', (socket) => {
     if (n < special + 2)
       return cb?.({ error: `이 설정에는 최소 ${special + 2}명이 필요해요 (현재 ${n}명)` });
 
-    // 랜덤 섞기
-    const ids = [...room.players.keys()];
+    // 방장이 사회자, 나머지는 랜덤 섞어서 역할 배정
+    room.moderatorId = room.hostId;
+    const ids = [...room.players.keys()].filter((id) => id !== room.hostId);
     for (let i = ids.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [ids[i], ids[j]] = [ids[j], ids[i]];
     }
-    room.moderatorId = ids[0];
     const roles = [
       ...Array(mafia).fill('mafia'),
       ...Array(police).fill('police'),
       ...Array(doctor).fill('doctor'),
     ];
-    ids.slice(1).forEach((id, i) => {
+    ids.forEach((id, i) => {
       room.players.get(id).role = roles[i] || 'citizen';
     });
     room.players.get(room.moderatorId).role = 'moderator';

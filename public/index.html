@@ -296,8 +296,7 @@ function playerChips(players) {
   return `<div class="player-list">${players.map(p => `
     <div class="chip ${!p.alive ? 'dead' : ''} ${!p.connected ? 'offline' : ''}">
       <div class="dot"></div>${esc(p.name)}
-      ${p.id === state.hostId ? '<span class="badge">방장</span>' : ''}
-      ${p.id === state.moderatorId ? '<span class="badge">사회자</span>' : ''}
+      ${p.id === state.moderatorId ? '<span class="badge">사회자</span>' : p.id === state.hostId ? '<span class="badge">방장</span>' : ''}
     </div>`).join('')}</div>`;
 }
 
@@ -357,7 +356,7 @@ function renderLobby() {
       ${settingRow('경찰', 'police', s.police, isHost)}
       ${settingRow('의사', 'doctor', s.doctor, isHost)}
       <div class="setting-row"><div class="label">시민</div><div class="stepper readonly"><span>${Math.max(0, n - 1 - special)}</span></div></div>
-      <div class="setting-row"><div class="label">사회자 (랜덤 배정)</div><div class="stepper readonly"><span>1</span></div></div>
+      <div class="setting-row"><div class="label">사회자 (방장)</div><div class="stepper readonly"><span>1</span></div></div>
     </div>
     ${isHost
       ? `<button onclick="socket.emit('startGame', r => r && r.error && toast(r.error))" ${n < minPlayers ? 'disabled' : ''}>게임 시작</button>`
