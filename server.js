@@ -54,6 +54,7 @@ function createRoom(hostName) {
     winner: null,
     log: [],
     chat: [],
+    roleChat: { mafia: [], doctor: [], police: [] },
   };
   room.players.set(hostId, { id: hostId, name: hostName, connected: true, role: null, alive: true });
   rooms.set(code, room);
@@ -108,6 +109,8 @@ function privateState(room, player) {
       .map((p) => p.name);
     priv.mafiaTarget = room.night.mafiaTarget;
   }
+  if (['mafia', 'doctor', 'police'].includes(player.role))
+    priv.roleChat = room.roleChat[player.role].slice(-50);
   if (player.role === 'doctor') priv.doctorTarget = room.night.doctorTarget;
   if (player.role === 'police') {
     priv.policeTarget = room.night.policeTarget;
@@ -133,6 +136,11 @@ function privateState(room, player) {
       })),
       lastNightResult: room.lastNightResult,
       log: room.log,
+      roleChat: {
+        mafia: room.roleChat.mafia.slice(-50),
+        doctor: room.roleChat.doctor.slice(-50),
+        police: room.roleChat.police.slice(-50),
+      },
     };
   }
   if (player.myVote === undefined) priv.myVote = room.votes.get(player.id) ?? null;
@@ -238,6 +246,7 @@ io.on('connection', (socket) => {
       room.players.get(id).role = roles[i] || 'citizen';
     });
     room.players.get(room.moderatorId).role = 'moderator';
+    room.roleChat = { mafia: [], doctor: [], police: [] };
     room.phase = 'reveal';
     room.log.push('게임 시작 — 역할이 배정되었습니다');
     cb?.({ ok: true });
@@ -265,6 +274,19 @@ io.on('connection', (socket) => {
     if (!text) return;
     ctx.room.chat.push({ name: ctx.player.name, text, ts: Date.now() });
     if (ctx.room.chat.length > 100) ctx.room.chat.shift();
+    broadcast(ctx.room);
+  });
+
+  socket.on('roleChat', ({ text }) => {
+    const ctx = getCtx();
+    if (!ctx || ctx.room.phase !== 'night' || !ctx.player.alive) return;
+    const role = ctx.player.role;
+    if (!['mafia', 'doctor', 'police'].includes(role)) return;
+    text = String(text || '').trim().slice(0, 200);
+    if (!text) return;
+    const list = ctx.room.roleChat[role];
+    list.push({ name: ctx.player.name, text, ts: Date.now() });
+    if (list.length > 100) list.shift();
     broadcast(ctx.room);
   });
 
@@ -360,6 +382,7 @@ io.on('connection', (socket) => {
     room.lastNightResult = null;
     room.votes = new Map();
     room.night = { mafiaTarget: null, doctorTarget: null, policeTarget: null };
+    room.roleChat = { mafia: [], doctor: [], police: [] };
     room.log = [];
     for (const p of room.players.values()) {
       p.role = null;

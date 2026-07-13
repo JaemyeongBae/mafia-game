@@ -225,10 +225,12 @@ function render() {
       if (chatDraft.focused) newChat.focus({ preventScroll: true });
     }
   }
-  const box = document.getElementById('chat-box');
-  const chatLen = state?.chat?.length ?? 0;
-  if (box && chatLen !== lastChatLen) {
-    box.scrollTop = box.scrollHeight;
+  const mod = state?.me?.moderator?.roleChat;
+  const chatLen = (state?.chat?.length ?? 0)
+    + (state?.me?.roleChat?.length ?? 0)
+    + (mod ? mod.mafia.length + mod.doctor.length + mod.police.length : 0);
+  if (chatLen !== lastChatLen) {
+    document.querySelectorAll('.chat-box').forEach(b => { b.scrollTop = b.scrollHeight; });
     lastChatLen = chatLen;
   }
 }
@@ -324,6 +326,34 @@ function sendChat() {
   if (!text) return;
   el.value = '';
   socket.emit('chatMessage', { text });
+  el.focus();
+}
+
+// 밤 직업별 채팅 (마피아/의사/경찰끼리, 사회자는 열람 가능)
+function chatMsgs(msgs, emptyText) {
+  const myName = localStorage.getItem('mafia-name');
+  return msgs.length ? msgs.map(m => `
+    <div class="chat-msg ${m.name === myName ? 'mine' : ''}">
+      <span class="who">${esc(m.name)}</span>${esc(m.text)}
+    </div>`).join('') : `<div class="chat-empty">${emptyText}</div>`;
+}
+function roleChatCard(title, msgs) {
+  return `<div class="card">
+    <h2>${title} <span style="text-transform:none;font-weight:400">— 사회자도 볼 수 있어요</span></h2>
+    <div class="chat-box">${chatMsgs(msgs || [], '팀과 상의해 보세요')}</div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="메시지 입력" maxlength="200"
+        onkeydown="if(event.key==='Enter'){sendRoleChat();event.preventDefault();}">
+      <button onclick="sendRoleChat()">전송</button>
+    </div>
+  </div>`;
+}
+function sendRoleChat() {
+  const el = document.getElementById('chat-input');
+  const text = el.value.trim();
+  if (!text) return;
+  el.value = '';
+  socket.emit('roleChat', { text });
   el.focus();
 }
 
@@ -457,7 +487,7 @@ function renderNightAction() {
     return `<div class="card">
       <h2>제거할 사람 선택${me.mafiaTeam.length > 1 ? ' — 마지막 선택이 적용됩니다' : ''}</h2>
       ${targetButtons('nightAction', me.mafiaTarget)}
-    </div>`;
+    </div>` + roleChatCard('마피아 채팅', me.roleChat);
   }
   if (me.role === 'doctor') {
     return `<div class="card">
@@ -466,17 +496,17 @@ function renderNightAction() {
         <button class="target-btn ${me.doctorTarget === p.id ? 'selected' : ''}" onclick="nightAction('${p.id}')">
           <span>${esc(p.name)}${p.id === me.id ? ' (나)' : ''}</span>${me.doctorTarget === p.id ? '<span>선택됨</span>' : ''}
         </button>`).join('')}
-    </div>`;
+    </div>` + roleChatCard('의사 채팅', me.roleChat);
   }
   if (me.role === 'police') {
     if (me.policeResult) {
-      return `<div class="info-box">조사 결과<br><b>${esc(me.policeResult.name)}</b> — <b>${me.policeResult.isMafia ? '마피아입니다' : '마피아가 아닙니다'}</b><br><span class="muted">이 결과는 당신과 사회자만 볼 수 있어요</span></div>
-        <div class="sub" style="text-align:center">사회자가 밤을 끝내기를 기다리는 중</div>`;
+      return `<div class="info-box">조사 결과<br><b>${esc(me.policeResult.name)}</b> — <b>${me.policeResult.isMafia ? '마피아입니다' : '마피아가 아닙니다'}</b><br><span class="muted">이 결과는 당신과 사회자만 볼 수 있어요</span></div>`
+        + roleChatCard('경찰 채팅', me.roleChat);
     }
     return `<div class="card">
       <h2>조사할 사람 선택 — 선택 후 변경 불가</h2>
       ${targetButtons('nightAction', null)}
-    </div>`;
+    </div>` + roleChatCard('경찰 채팅', me.roleChat);
   }
   return roleCard('citizen') + `<div class="sub" style="text-align:center">밤이에요. 눈을 감고 기다려 주세요.</div>`;
 }
@@ -510,6 +540,18 @@ function renderModerator() {
         <div class="mod-row"><span>마피아 대상</span><span class="r mafia">${n.mafiaTarget ? esc(n.mafiaTarget) : '선택 중'}</span></div>
         <div class="mod-row"><span>의사 대상</span><span class="r doctor">${n.doctorTarget ? esc(n.doctorTarget) : '선택 중'}</span></div>
         <div class="mod-row"><span>경찰 조사</span><span class="r police">${n.policeTarget ? esc(n.policeTarget) : '선택 중'}</span></div>
+      </div>
+      <div class="card">
+        <h2><span class="r mafia">마피아 채팅</span></h2>
+        <div class="chat-box">${chatMsgs(mod.roleChat.mafia, '대화 없음')}</div>
+      </div>
+      <div class="card">
+        <h2><span class="r doctor">의사 채팅</span></h2>
+        <div class="chat-box">${chatMsgs(mod.roleChat.doctor, '대화 없음')}</div>
+      </div>
+      <div class="card">
+        <h2><span class="r police">경찰 채팅</span></h2>
+        <div class="chat-box">${chatMsgs(mod.roleChat.police, '대화 없음')}</div>
       </div>
       <button onclick="socket.emit('modEndNight')">밤 종료 — 결과 확인</button>`;
   } else if (state.phase === 'day') {
